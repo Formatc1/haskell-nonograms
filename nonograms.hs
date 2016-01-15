@@ -1,3 +1,5 @@
+import System.Environment
+
 splitBy :: Char -> [Char] -> [[Char]]
 splitBy delimiter = foldr f [[]]
     where f c (x:xs)
@@ -89,7 +91,8 @@ stepSolution horizontal vertical board = do
 
 main = do
     -- read board parameters from file
-    x <- (>>=) (readFile "input2.txt") (return.splitBy '\n')
+    files <- getArgs
+    x <- (>>=) (readFile (head files)) (return.splitBy '\n')
     x <- return (map (splitBy ' ') x)
     x <- return (map (map (read::String->Int)) x)
     size <- return (head x)
@@ -101,5 +104,7 @@ main = do
     board <- return (replicate height (replicate width 0))
 
     board <- return (stepSolution horizontal vertical board)
-    writeFile "output.txt" (showBoard board)
+    writeFile (head (tail files)) (showBoard board)
     print board
+    arg <- getArgs
+    print (arg)
