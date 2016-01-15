@@ -106,5 +106,3 @@ main = do
     board <- return (stepSolution horizontal vertical board)
     writeFile (head (tail files)) (showBoard board)
     print board
-    arg <- getArgs
-    print (arg)
