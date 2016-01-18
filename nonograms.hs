@@ -31,6 +31,20 @@ itFits num (field:fields) = if field < 0
     then False
     else itFits (num - 1) fields
 
+glueOnPair :: ([Int], [Int]) -> [Int]
+glueOnPair (numbers, row) = glue 0 (head numbers) row
+
+glue :: Int -> Int -> [Int] -> [Int]
+glue _ 0 row = row
+glue 0 number (field:row)
+    | field < 0 = (-1) : glue 0 number row
+    | field == 0 = 0 : glue 0 (number-1) row 
+    | field > 0 = 1 : glue 1 (number-1) row
+glue 1 number list@(field:row)
+    | field < 0 = list
+    | field == 0 = 1 : glue 1 (number-1) row
+    | field > 0 = 1 :glue 1 (number-1) row
+
 --leftFillSimpleBoxes :: Int -> Int -> [Int] -> [Int]
 --leftFillSimpleBoxes _ size [] = replicate size 0
 --leftFillSimpleBoxes color size (number:next:xs) = (replicate number color) ++ [0] ++ (leftFillSimpleBoxes (color + 1) (size - number - 1) (next:xs))
@@ -50,6 +64,19 @@ intersectionElem x = if (fst x) > 0 && (snd x) > 0 && (fst x) == (snd x)
     else if (fst x) < 0 || (snd x) < 0
         then -1
         else 0
+
+intersectionList :: Int -> Int -> ([Int], [Int]) -> [Int]
+intersectionList _ _ ([], []) = []
+intersectionList stateX stateY ((x:xs), (y:ys))
+    | x == 1 || y == 1 = 1 : intersectionList stateX stateY (xs, ys)
+    | x < 0 || y < 0 = (-1) : intersectionList stateX stateY (xs, ys)
+    | x > 1 && y > 1 && x == y = 1 : intersectionList x y (xs, ys)
+    | stateX == stateY && x == 0 && y == 0 = (-1) : intersectionList stateX stateY (xs, ys)
+    | x == 0 && y == 0 = 0 : intersectionList stateX stateY (xs, ys)
+    | x > 1 && y > 1 = 0 : intersectionList x y (xs, ys)
+    | x > 1 = 0 : intersectionList x stateY (xs, ys)
+    | y > 1 = 0 : intersectionList stateX y (xs, ys)
+    | otherwise = 0 : intersectionList stateX stateY (xs, ys)
 
 --simpleBoxes :: Int -> [Int] -> [Int]
 --simpleBoxes size numbers = map checkSimpleBoxes (zip x (rightFillSimpleBoxes (maximum x) size (reverse numbers))) where x = (leftFillSimpleBoxes 2 size numbers)
@@ -109,8 +136,10 @@ stepSolution :: [[Int]] -> [[Int]] -> [[Int]] -> [[Int]]
 stepSolution horizontal vertical board = do
     board1 <- return board
     board2 <- return (transpose board)
-    board3 <- return (addSolution intersectionElem (map (fillSimpleBoxes ((+) 1) 2) (zip horizontal board1)) (map (\x -> reverse (fillSimpleBoxes (flip (-) 1) ((length (fst x)) + 1) (reversePair x))) (zip horizontal board1)))
-    board4 <- return (addSolution intersectionElem (map (fillSimpleBoxes ((+) 1) 2) (zip vertical board2)) (map (\x -> reverse (fillSimpleBoxes (flip (-) 1) ((length (fst x)) + 1) (reversePair x))) (zip vertical board2)))
+
+    board3 <- return (map (intersectionList 0 0) (zip (map (fillSimpleBoxes ((+) 1) 2) (zip horizontal board1)) (map (\x -> reverse (fillSimpleBoxes (flip (-) 1) ((length (fst x)) + 1) (reversePair x))) (zip horizontal board1))))
+    board4 <- return (map (intersectionList 0 0) (zip (map (fillSimpleBoxes ((+) 1) 2) (zip vertical board2)) (map (\x -> reverse (fillSimpleBoxes (flip (-) 1) ((length (fst x)) + 1) (reversePair x))) (zip vertical board2))))
+
 
     board3 <- return (addSolution unionElem board3 (transpose board4))
     board4 <- return (transpose board3)
@@ -119,11 +148,20 @@ stepSolution horizontal vertical board = do
     board4 <- return (map (checkAndCompleteRow) (zip vertical board4))
 
     board3 <- return (addSolution unionElem board3 (transpose board4))
+
+    board3 <- return (map glueOnPair (zip horizontal board3))
+    board3 <- return (map (\x -> reverse (glueOnPair (reversePair x))) (zip horizontal board3))
+
+    board4 <- return (transpose board3)
+    board4 <- return (map glueOnPair (zip vertical board4))
+    board4 <- return (map (\x -> reverse (glueOnPair (reversePair x))) (zip vertical board4))
+    board3 <- return (transpose board4)
+
     if (countProgress board3 > countProgress board1)
         then stepSolution horizontal vertical board3
         else if sum (map sum horizontal) == countProgress board3
             then board3
-            --else findCorrect horizontal (bruteForceBoard vertical board3) 
+            --else findCorrect vertical (bruteForceBoard horizontal board3)
             else board3
 
 genBruteForceRow :: Int -> [Int] -> [Int] -> [[Int]]
@@ -159,9 +197,9 @@ findCorrect vertical boards = transpose (map snd (head (filter (\x -> foldl (&&)
 
 main = do
     -- read board parameters from file
-    --files <- getArgs
-    --x <- (>>=) (readFile (head files)) (return.splitBy '\n')
-    x <- (>>=) (readFile "boards/10x15.txt") (return.splitBy '\n')
+    files <- getArgs
+    x <- (>>=) (readFile (head files)) (return.splitBy '\n')
+    --x <- (>>=) (readFile "boards/22x15.txt") (return.splitBy '\n')
     x <- return (map (splitBy ' ') x)
     x <- return (map (map (read::String->Int)) x)
     size <- return (head x)
