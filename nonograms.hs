@@ -136,7 +136,8 @@ stepSolution :: [[Int]] -> [[Int]] -> [[Int]] -> [[Int]]
 stepSolution horizontal vertical board = do
     board1 <- return board
     board2 <- return (transpose board)
-
+    --board3 <- return (addSolution intersectionElem (map (fillSimpleBoxes ((+) 1) 2) (zip horizontal board1)) (map (\x -> reverse (fillSimpleBoxes (flip (-) 1) ((length (fst x)) + 1) (reversePair x))) (zip horizontal board1)))
+    --board4 <- return (addSolution intersectionElem (map (fillSimpleBoxes ((+) 1) 2) (zip vertical board2)) (map (\x -> reverse (fillSimpleBoxes (flip (-) 1) ((length (fst x)) + 1) (reversePair x))) (zip vertical board2)))
     board3 <- return (map (intersectionList 0 0) (zip (map (fillSimpleBoxes ((+) 1) 2) (zip horizontal board1)) (map (\x -> reverse (fillSimpleBoxes (flip (-) 1) ((length (fst x)) + 1) (reversePair x))) (zip horizontal board1))))
     board4 <- return (map (intersectionList 0 0) (zip (map (fillSimpleBoxes ((+) 1) 2) (zip vertical board2)) (map (\x -> reverse (fillSimpleBoxes (flip (-) 1) ((length (fst x)) + 1) (reversePair x))) (zip vertical board2))))
 
@@ -161,8 +162,8 @@ stepSolution horizontal vertical board = do
         then stepSolution horizontal vertical board3
         else if sum (map sum horizontal) == countProgress board3
             then board3
-            --else findCorrect vertical (bruteForceBoard horizontal board3)
-            else board3
+            else findCorrect vertical (bruteForceBoard horizontal board3)
+            --else board3
 
 genBruteForceRow :: Int -> [Int] -> [Int] -> [[Int]]
 genBruteForceRow 0 [] row = [row]
