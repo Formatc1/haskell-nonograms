@@ -7,12 +7,6 @@ instance Show Field where
     show Cross = "X"
     show Undefined = "?"
 
-splitBy :: Eq a => a -> [a] -> [[a]]
-splitBy delimiter = foldr f [[]]
-    where f c (x:xs)
-            | c == delimiter = []:(x:xs)
-            | otherwise = (c:x):xs
-
 initBoard :: Int -> Int -> [[Field]]
 initBoard width height = replicate height (replicate width Undefined)
 
@@ -22,9 +16,9 @@ transpose x = (map head x) : transpose (map tail x)
 
 countRow :: Field -> [Field] -> Int
 countRow _ [] = 0
-countRow elem (x:xs) 
-    | elem == x = 1 + countRow elem xs
-    | otherwise = countRow elem xs
+countRow element (x:xs) 
+    | element == x = 1 + countRow element xs
+    | otherwise = countRow element xs
 
 countProgress :: [[Field]] -> Int
 countProgress [] = 0
@@ -33,9 +27,14 @@ countProgress board = sum (map (countRow Cross) board)
 ifFits :: Int -> [Field] -> Bool
 ifFits 0 (Cross:_) = False
 ifFits 0 _ = True
-ifFits x [] = False 
-ifFits x (Blank:_) = False
+ifFits _ [] = False 
+ifFits _ (Blank:_) = False
 ifFits x (_:row) = ifFits (x - 1) row
+
+findUndefined :: [Field] -> Bool
+findUndefined [] = False
+findUndefined (Undefined:_) = True
+findUndefined (_:x) = findUndefined x
 
 genPossibleRow :: Int -> [Int] -> [[Field]]
 genPossibleRow n [] = [replicate n Blank]
@@ -68,7 +67,9 @@ intersectionPossibilities (x:y:xs) = intersectionPossibilities ((intersectionRow
 
 solutionStep :: [[Int]] -> [[Field]] -> [[Field]]
 solutionStep [] [] = []
-solutionStep (numbers:restNumbers) (row:board) = (intersectionPossibilities (reduceWrongRows row (genPossibleRow (length row) numbers))) : solutionStep restNumbers board
+solutionStep (numbers:restNumbers) (row:board) = if findUndefined row 
+    then (intersectionPossibilities (reduceWrongRows row (genPossibleRow (length row) numbers))) : solutionStep restNumbers board
+    else row : solutionStep restNumbers board
 
 solve :: [[Int]] -> [[Int]] -> [[Field]] -> [[Field]]
 solve horizontal vertical board = if countProgress newBoard > countProgress board 
@@ -81,16 +82,17 @@ showBoard board = (foldr (\a b -> a ++ "\n" ++ b) [] (map (map (\a -> if a == Cr
     then '█'
     else ' ')) board))
 
+main :: IO ()
 main = do
     files <- getArgs
-    x <- ((readFile (head files)) >>= return . (splitBy '\n'))
-    --x <- ((readFile "boards/30x20.txt") >>= return . (splitBy '\n'))
-    x <- return $ map ((map (read::String->Int)) . splitBy ' ') x
-    size <- return (head x)
+    x <- ((readFile (head files)) >>= return . lines)
+    --x <- ((readFile "boards/22x15.txt") >>= return . lines)
+    y <- return $ map ((map (read::String->Int)) . words) x
+    size <- return (head y)
     width <- return (head size)
     height <- return (head (tail size))
-    horizontal <- return (drop width (drop 1 x))
-    vertical <- return (take width (drop 1 x))
+    horizontal <- return (drop width (drop 1 y))
+    vertical <- return (take width (drop 1 y))
     board <- return (solve horizontal vertical (initBoard width height))
     writeFile "output.txt" (showBoard board)
     print board
