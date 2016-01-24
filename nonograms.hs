@@ -10,6 +10,10 @@ transpose :: [[a]] -> [[a]]
 transpose ([]:_) = []
 transpose x = (map head x) : transpose (map tail x)
 
+cartesian :: [[a]] -> [[a]]
+cartesian [] = [[]]
+cartesian (list:lists) = [x:xs | x <- list, xs <- (cartesian lists)]
+
 fillSimpleBoxes :: (Int -> Int) -> Int -> ([Int], [Int]) -> [Int]
 fillSimpleBoxes _ _ ([], board) = board
 fillSimpleBoxes f color (numbers@(num:nums), board@(field:fields)) = if field < 0 
@@ -24,12 +28,12 @@ fillSimpleBoxes _ _ _ = []
 itFits :: Int -> [Int] -> Bool
 itFits 0 [] = True
 itFits _ [] = False
-itFits 0 (field:fields) = if field > 0
-    then False
-    else True
-itFits num (field:fields) = if field < 0
-    then False
-    else itFits (num - 1) fields
+itFits 0 (field:fields) 
+    | field > 0 = False
+    | otherwise = True
+itFits num (field:fields)
+    | field < 0 = False
+    | otherwise = itFits (num - 1) fields
 
 glueOnPair :: ([Int], [Int]) -> [Int]
 glueOnPair (numbers, row) = glue 0 (head numbers) row
@@ -112,6 +116,9 @@ checkAndCompleteRow row = if checkRow row
         else -1) (snd row)
     else snd row
 
+checkBoard :: [[Int]] -> [[Int]] -> Bool
+checkBoard numbers board = foldl (&&) True (map checkRow (zip numbers board))
+
 removeZeroFromHead :: [Int] -> [Int]
 removeZeroFromHead [] = []
 removeZeroFromHead (0:list) = list
@@ -134,36 +141,35 @@ countProgress board = sum (map count board)
 
 stepSolution :: [[Int]] -> [[Int]] -> [[Int]] -> [[Int]] 
 stepSolution horizontal vertical board = do
-    board1 <- return board
-    board2 <- return (transpose board)
+    --board1 <- return board
+    --board2 <- return (transpose board)
     --board3 <- return (addSolution intersectionElem (map (fillSimpleBoxes ((+) 1) 2) (zip horizontal board1)) (map (\x -> reverse (fillSimpleBoxes (flip (-) 1) ((length (fst x)) + 1) (reversePair x))) (zip horizontal board1)))
     --board4 <- return (addSolution intersectionElem (map (fillSimpleBoxes ((+) 1) 2) (zip vertical board2)) (map (\x -> reverse (fillSimpleBoxes (flip (-) 1) ((length (fst x)) + 1) (reversePair x))) (zip vertical board2)))
-    board3 <- return (map (intersectionList 0 0) (zip (map (fillSimpleBoxes ((+) 1) 2) (zip horizontal board1)) (map (\x -> reverse (fillSimpleBoxes (flip (-) 1) ((length (fst x)) + 1) (reversePair x))) (zip horizontal board1))))
-    board4 <- return (map (intersectionList 0 0) (zip (map (fillSimpleBoxes ((+) 1) 2) (zip vertical board2)) (map (\x -> reverse (fillSimpleBoxes (flip (-) 1) ((length (fst x)) + 1) (reversePair x))) (zip vertical board2))))
+    board1 <- return (map (intersectionList 0 0) (zip (map (fillSimpleBoxes ((+) 1) 2) (zip horizontal board)) (map (\x -> reverse (fillSimpleBoxes (flip (-) 1) ((length (fst x)) + 1) (reversePair x))) (zip horizontal board))))
+    board2 <- let transposedBoard = transpose board in return (map (intersectionList 0 0) (zip (map (fillSimpleBoxes ((+) 1) 2) (zip vertical transposedBoard)) (map (\x -> reverse (fillSimpleBoxes (flip (-) 1) ((length (fst x)) + 1) (reversePair x))) (zip vertical transposedBoard)))) 
 
 
-    board3 <- return (addSolution unionElem board3 (transpose board4))
-    board4 <- return (transpose board3)
+    --board3 <- return (transpose board4)
 
-    board3 <- return (map (checkAndCompleteRow) (zip horizontal board3))
-    board4 <- return (map (checkAndCompleteRow) (zip vertical board4))
+    board2 <- return (map (checkAndCompleteRow) (zip vertical board2))
+    board1 <- return (map (checkAndCompleteRow) (zip horizontal (transpose board2)))
 
-    board3 <- return (addSolution unionElem board3 (transpose board4))
+    --board3 <- return (addSolution unionElem board3 (transpose board4))
 
-    board3 <- return (map glueOnPair (zip horizontal board3))
-    board3 <- return (map (\x -> reverse (glueOnPair (reversePair x))) (zip horizontal board3))
+    board1 <- return (map glueOnPair (zip horizontal board1))
+    board1 <- return (map (\x -> reverse (glueOnPair (reversePair x))) (zip horizontal board1))
 
-    board4 <- return (transpose board3)
-    board4 <- return (map glueOnPair (zip vertical board4))
-    board4 <- return (map (\x -> reverse (glueOnPair (reversePair x))) (zip vertical board4))
-    board3 <- return (transpose board4)
+    --board4 <- return (transpose board3)
+    board2 <- return (map glueOnPair (zip vertical (transpose board1)))
+    board2 <- return (map (\x -> reverse (glueOnPair (reversePair x))) (zip vertical board2))
+    board1 <- return (transpose board2)
 
-    if (countProgress board3 > countProgress board1)
-        then stepSolution horizontal vertical board3
-        else if sum (map sum horizontal) == countProgress board3
-            then board3
-            else findCorrect vertical (bruteForceBoard horizontal board3)
-            --else board3
+    if (countProgress board1 > countProgress board)
+        then stepSolution horizontal vertical board1
+        else if sum (map sum horizontal) == countProgress board1
+            then board1
+            --else takeFirstCorrect vertical (bruteForceBoard horizontal board1)
+            else board1
 
 genBruteForceRow :: Int -> [Int] -> [Int] -> [[Int]]
 genBruteForceRow 0 [] row = [row]
@@ -191,10 +197,16 @@ checkIfCover (x:xs) (y:ys)
     | otherwise = False
 
 bruteForceBoard :: [[Int]] -> [[Int]] -> [[[Int]]]
-bruteForceBoard horizontal board = sequence (map bruteForce (zip horizontal board))
+bruteForceBoard horizontal board = cartesian (map bruteForce (zip horizontal board))
 
-findCorrect :: [[Int]] -> [[[Int]]] -> [[Int]]
-findCorrect vertical boards = transpose (map snd (head (filter (\x -> foldl (&&) True (map checkRow x)) (map ((zip vertical).transpose) boards))))
+takeFirstCorrect :: [[Int]] -> [[[Int]]] -> [[Int]]
+takeFirstCorrect vertical [] = [[]]
+takeFirstCorrect vertical (board:boards)
+    | checkBoard vertical (transpose board) = board
+    | otherwise = takeFirstCorrect vertical boards
+
+--findCorrect :: [[Int]] -> [[[Int]]] -> [[Int]]
+--findCorrect vertical boards = transpose (map snd (head (filter (\x -> foldl (&&) True (map checkRow x)) (map ((zip vertical).transpose) boards))))
 
 main = do
     -- read board parameters from file
@@ -224,3 +236,5 @@ main = do
 --    --print (countProgress [[-1,-1,-1,1,-1,1,-1,-1,-1,-1],[0,1,1,1,1,1,1,0,0,0],[0,1,1,1,1,1,1,1,1,0],[1,1,-1,1,-1,1,-1,1,1,1],[1,1,0,1,-1,1,-1,0,1,0],[1,1,0,1,-1,1,-1,0,1,0],[1,1,1,1,-1,1,-1,-1,-1,-1],[0,1,0,1,1,1,1,1,0,0],[-1,-1,-1,1,1,1,1,1,1,-1],[1,1,-1,1,-1,1,-1,1,1,1],[1,1,-1,1,-1,1,-1,1,1,1],[1,1,1,1,-1,1,-1,1,1,1],[0,1,1,1,1,1,1,1,0,0],[-1,-1,1,1,1,1,1,1,-1,-1],[-1,-1,-1,1,-1,1,-1,-1,-1,-1]])
 --    --print (sum (map sum [[5, 3], [7, 4], [2, 2, 3], [15], [2, 2, 2], [15], [2, 2, 2], [3, 7], [4, 5], [3, 3]]))
 --    --print (checkIfCorrect [[1], [2]] [[[1,1], [2,2]], [[3,3], [4,4]]])
+
+--main = print (1)
