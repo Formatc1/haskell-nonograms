@@ -94,7 +94,8 @@ main = do
     horizontal <- return (drop width (drop 1 y))
     vertical <- return (take width (drop 1 y))
     board <- return (solve horizontal vertical (initBoard width height))
-    writeFile "output.txt" (showBoard board)
+    --writeFile "output.txt" (showBoard board)
+    writeFile (head (tail files)) (showBoard board)
     print board
 
 --main = print (intersectionPossibilities (reduceWrongRows [Undefined,Undefined,Undefined,Undefined,Undefined,Undefined] (genPossibleRow 6 [4])))
